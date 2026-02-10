@@ -6,7 +6,9 @@ services:
     ports:
       - "8000:8000"
     environment:
+      - AI_PROVIDER=${AI_PROVIDER:-openai}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - KIMI_API_KEY=${KIMI_API_KEY}
       - API_KEY=${API_KEY:-demo-api-key}
       - PORT=8000
     volumes:

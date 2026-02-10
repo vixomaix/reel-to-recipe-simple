@@ -3,15 +3,35 @@ import base64
 import tempfile
 import shutil
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from openai import OpenAI
 import yt_dlp
 
 
 class VideoExtractor:
-    def __init__(self, openai_api_key: str):
-        self.client = OpenAI(api_key=openai_api_key)
+    def __init__(self, api_key: str, provider: str = "openai"):
+        """
+        Initialize extractor with AI provider.
+        
+        Args:
+            api_key: API key for the provider
+            provider: "openai" or "kimi" (Moonshot AI)
+        """
+        self.provider = provider.lower()
         self.temp_dir = None
+        
+        if self.provider == "openai":
+            self.client = OpenAI(api_key=api_key)
+            self.model = "gpt-4o"
+        elif self.provider == "kimi":
+            # Moonshot AI (Kimi) uses OpenAI-compatible API
+            self.client = OpenAI(
+                api_key=api_key,
+                base_url="https://api.moonshot.cn/v1"
+            )
+            self.model = "moonshot-v1-8k-vision-preview"
+        else:
+            raise ValueError(f"Unknown provider: {provider}. Use 'openai' or 'kimi'")
 
     def extract(self, url: str) -> dict:
         """Extract recipe from video URL."""
@@ -78,7 +98,7 @@ class VideoExtractor:
         return frames
 
     def _analyze_frames(self, frame_paths: List[str]) -> dict:
-        """Send frames to OpenAI Vision for recipe extraction."""
+        """Send frames to AI Vision for recipe extraction."""
         # Encode frames to base64
         images = []
         for path in frame_paths:
@@ -117,7 +137,7 @@ class VideoExtractor:
         
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4o",
+                model=self.model,
                 messages=[{"role": "user", "content": content}],
                 max_tokens=2000,
                 temperature=0.3

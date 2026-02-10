@@ -5,10 +5,16 @@ from fastapi.responses import JSONResponse
 from .models import ExtractRequest, ExtractResponse, ErrorResponse
 from .extractor import VideoExtractor
 
-app = FastAPI(title="Reel to Recipe", version="1.0.0")
+app = FastAPI(title="Reel to Recipe", version="1.1.0")
 
 API_KEY = os.getenv("API_KEY", "demo-api-key")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+AI_PROVIDER = os.getenv("AI_PROVIDER", "openai").lower()
+
+# Get the appropriate API key based on provider
+if AI_PROVIDER == "openai":
+    AI_API_KEY = os.getenv("OPENAI_API_KEY")
+else:
+    AI_API_KEY = os.getenv("KIMI_API_KEY")
 
 
 @app.post("/extract", response_model=ExtractResponse)
@@ -24,9 +30,12 @@ async def extract_recipe(
     if token != API_KEY:
         raise HTTPException(status_code=403, detail="Invalid API key")
     
-    # Validate OpenAI key
-    if not OPENAI_API_KEY:
-        raise HTTPException(status_code=500, detail="OPENAI_API_KEY not configured")
+    # Validate AI API key
+    if not AI_API_KEY:
+        raise HTTPException(
+            status_code=500, 
+            detail=f"{'OPENAI_API_KEY' if AI_PROVIDER == 'openai' else 'KIMI_API_KEY'} not configured"
+        )
     
     # Validate URL
     url_str = str(request.url)
@@ -37,7 +46,7 @@ async def extract_recipe(
     
     # Extract recipe
     try:
-        extractor = VideoExtractor(OPENAI_API_KEY)
+        extractor = VideoExtractor(AI_API_KEY, provider=AI_PROVIDER)
         result = extractor.extract(url_str)
         return ExtractResponse(**result)
     except ValueError as e:
@@ -48,7 +57,11 @@ async def extract_recipe(
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "version": "1.0.0"}
+    return {
+        "status": "ok", 
+        "version": "1.1.0",
+        "provider": AI_PROVIDER
+    }
 
 
 @app.exception_handler(Exception)
